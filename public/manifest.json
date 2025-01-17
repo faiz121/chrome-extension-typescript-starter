@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
 
-  "name": "Chrome Extension TypeScript Starter",
+  "name": "Helion",
   "description": "Chrome Extension, TypeScript, Visual Studio Code",
   "version": "1.0",
 
@@ -13,21 +13,39 @@
     "default_icon": "icon.png",
     "default_popup": "popup.html"
   },
-
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
   "content_scripts": [
       {
           "matches": ["<all_urls>"],
           "js": ["js/vendor.js", "js/content_script.js"]
       }
   ],
-
+  "commands": {
+    "_execute_side_panel": {
+      "suggested_key": {
+        "default": "Ctrl+B",
+        "mac": "Command+B"
+      },
+      "description": "Toggle Side Panel"
+    }
+  },
   "background": {
     "service_worker": "js/background.js"
   },
 
   "permissions": [
-    "storage"
+    "sidePanel",
+    "scripting",
+    "storage",
+    "tabs"
   ],
+
+  "web_accessible_resources": [{
+    "resources": ["redirect.html"],
+    "matches": ["<all_urls>"]
+  }],
 
   "host_permissions": [
     "<all_urls>"
