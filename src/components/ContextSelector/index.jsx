@@ -11,103 +11,89 @@ const ContextSelector = ({ files = [], onTabsChange, onFilesChange }) => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [loadingTabs, setLoadingTabs] = useState(new Set());
   const [completedTabs, setCompletedTabs] = useState(new Set());
+  const [error, setError] = useState(null);
 
   // Fetch tabs when component mounts
   useEffect(() => {
-    const getTabs = async () => {
+    const fetchTabs = async () => {
       try {
+        // Log that we're starting to fetch tabs
+        console.log('Fetching tabs...');
+        
+        // Clear any previous errors
+        setError(null);
+        
+        // Mock data for testing if chrome.tabs is not available
+        if (!window.chrome?.tabs?.query) {
+          console.log('Chrome tabs API not available, using mock data');
+          const mockTabs = [
+            { id: 1, title: 'Test Tab 1', url: 'https://test1.com' },
+            { id: 2, title: 'Test Tab 2', url: 'https://test2.com' },
+          ];
+          setTabs(mockTabs);
+          return;
+        }
+
         const allTabs = await chrome.tabs.query({});
-        setTabs(allTabs.map(tab => ({
+        console.log('Fetched tabs:', allTabs);
+        
+        const formattedTabs = allTabs.map(tab => ({
           id: tab.id,
           title: tab.title,
           url: tab.url
-        })));
+        }));
+        
+        setTabs(formattedTabs);
       } catch (error) {
         console.error('Error fetching tabs:', error);
+        setError('Failed to fetch tabs');
       }
     };
 
-    getTabs();
+    fetchTabs();
   }, []);
 
   // Update selected files when new files are added
   useEffect(() => {
     if (files.length > 0) {
-      const indices = files.map((_, idx) => idx);
-      setSelectedFiles(indices);
-      onFilesChange && onFilesChange(files);
-    } else {
-      setSelectedFiles([]);
+      setSelectedFiles(files.map((_, idx) => idx));
+      onFilesChange?.(files);
     }
-  }, [files]);
-
-  // Clear completed status after 2 seconds
-  useEffect(() => {
-    const timeouts = [];
-    completedTabs.forEach(tabId => {
-      const timeout = setTimeout(() => {
-        setCompletedTabs(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(tabId);
-          return newSet;
-        });
-      }, 2000);
-      timeouts.push(timeout);
-    });
-
-    return () => timeouts.forEach(timeout => clearTimeout(timeout));
-  }, [completedTabs]);
+  }, [files, onFilesChange]);
 
   const handleTabSelect = async (tabId) => {
-    // Check if we're adding or removing
-    const isAdding = !selectedTabs.includes(tabId);
-
-    // If adding, check max limit
-    if (isAdding && selectedTabs.length >= MAX_TABS) {
-      alert(`You can only select up to ${MAX_TABS} tabs`);
-      return;
-    }
-
-    if (isAdding) {
-      // Start loading state
+    if (selectedTabs.includes(tabId)) {
+      // Remove tab
+      const newSelection = selectedTabs.filter(id => id !== tabId);
+      setSelectedTabs(newSelection);
+      onTabsChange?.(newSelection);
+    } else if (selectedTabs.length < MAX_TABS) {
+      // Add tab
       setLoadingTabs(prev => new Set([...prev, tabId]));
-
+      
       try {
-        // Send message to background script
-        await chrome.runtime.sendMessage({
-          action: 'processTab',
-          tabId: tabId
-        });
-
-        // Mock API delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        // Update selected tabs
-        setSelectedTabs(prev => [...prev, tabId]);
-
-        // Remove loading state and show completed state
-        setLoadingTabs(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(tabId);
-          return newSet;
-        });
+        // Simulate processing delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const newSelection = [...selectedTabs, tabId];
+        setSelectedTabs(newSelection);
+        onTabsChange?.(newSelection);
+        
         setCompletedTabs(prev => new Set([...prev, tabId]));
-
-        // Notify parent
-        onTabsChange && onTabsChange([...selectedTabs, tabId]);
-      } catch (error) {
-        console.error('Error processing tab:', error);
+        setTimeout(() => {
+          setCompletedTabs(prev => {
+            const next = new Set(prev);
+            next.delete(tabId);
+            return next;
+          });
+        }, 2000);
+      } finally {
         setLoadingTabs(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(tabId);
-          return newSet;
+          const next = new Set(prev);
+          next.delete(tabId);
+          return next;
         });
-        alert('Failed to process tab');
       }
-    } else {
-      // Remove tab from selection
-      setSelectedTabs(prev => prev.filter(id => id !== tabId));
-      onTabsChange && onTabsChange(selectedTabs.filter(id => id !== tabId));
     }
   };
 
@@ -116,30 +102,28 @@ const ContextSelector = ({ files = [], onTabsChange, onFilesChange }) => {
       const newSelection = prev.includes(index)
         ? prev.filter(i => i !== index)
         : [...prev, index];
-      onFilesChange && onFilesChange(newSelection.map(i => files[i]));
+      onFilesChange?.(newSelection.map(i => files[i]));
       return newSelection;
     });
   };
 
   const handleSelectAll = () => {
     if (activeTab === 'tabs') {
-      const allTabIds = tabs.map(tab => tab.id);
-      setSelectedTabs(prev => prev.length === tabs.length ? [] : allTabIds);
-      onTabsChange && onTabsChange(selectedTabs.length === tabs.length ? [] : allTabIds);
+      const newSelection = selectedTabs.length === tabs.length ? [] : tabs.map(tab => tab.id);
+      setSelectedTabs(newSelection);
+      onTabsChange?.(newSelection);
     } else {
-      const allFileIndices = files.map((_, idx) => idx);
-      setSelectedFiles(prev => prev.length === files.length ? [] : allFileIndices);
-      onFilesChange && onFilesChange(selectedFiles.length === files.length ? [] : files);
+      const newSelection = selectedFiles.length === files.length ? [] : files.map((_, i) => i);
+      setSelectedFiles(newSelection);
+      onFilesChange?.(newSelection.map(i => files[i]));
     }
   };
 
   return (
-    <div className="relative" onClick={e => e.stopPropagation()}>
+    <div className="relative">
       <button
-        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="p-1.5 hover:bg-gray-100 rounded-full relative"
-        title="Select context"
       >
         <Layers className="w-5 h-5 text-gray-500" />
         <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
@@ -148,54 +132,40 @@ const ContextSelector = ({ files = [], onTabsChange, onFilesChange }) => {
       </button>
 
       {isOpen && (
-  <>
-    <div 
-      className="fixed inset-0 bg-black bg-opacity-30"
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsOpen(false);
-      }}
-    />
-    <div 
-      className="absolute bottom-full mb-2 right-0 w-80 bg-white rounded-lg shadow-lg border border-gray-200"
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-    >
-      <div className="p-3 border-b border-gray-200 flex justify-between items-center">
-        <h3 className="font-medium">Select Context</h3>
-        <button
-          onClick={() => setIsOpen(false)}
-          className="p-1 hover:bg-gray-100 rounded-full"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-
-      <div className="flex border-b border-gray-200">
+        <>
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-30"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute bottom-full mb-2 right-0 w-80 bg-white rounded-lg shadow-lg border border-gray-200 max-h-96">
+            <div className="p-3 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="font-medium">Select Context</h3>
               <button
-                type="button" // Add type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setActiveTab('tabs');
-                }}
-                className={`flex-1 p-2 text-sm font-medium ${activeTab === 'tabs' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'
-                  }`}
+                onClick={() => setIsOpen(false)}
+                className="p-1 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex border-b border-gray-200">
+              <button
+                onClick={() => setActiveTab('tabs')}
+                className={`flex-1 p-2 text-sm font-medium ${
+                  activeTab === 'tabs' 
+                    ? 'text-blue-600 border-b-2 border-blue-600' 
+                    : 'text-gray-500'
+                }`}
               >
                 Tabs ({selectedTabs.length})
               </button>
               <button
-                type="button" // Add type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setActiveTab('files');
-                }}
-                className={`flex-1 p-2 text-sm font-medium ${activeTab === 'files' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500'
-                  }`}
+                onClick={() => setActiveTab('files')}
+                className={`flex-1 p-2 text-sm font-medium ${
+                  activeTab === 'files' 
+                    ? 'text-blue-600 border-b-2 border-blue-600' 
+                    : 'text-gray-500'
+                }`}
               >
                 Files ({selectedFiles.length})
               </button>
@@ -213,10 +183,14 @@ const ContextSelector = ({ files = [], onTabsChange, onFilesChange }) => {
               </button>
             </div>
 
-            <div className="overflow-y-auto" style={{ maxHeight: 'calc(50vh - 400px)' }}>
+            <div className="overflow-y-auto max-h-64">
               {activeTab === 'tabs' ? (
                 <div className="p-2 space-y-1">
-                  {tabs.length === 0 ? (
+                  {error ? (
+                    <div className="p-4 text-center text-red-500">
+                      {error}
+                    </div>
+                  ) : tabs.length === 0 ? (
                     <div className="p-4 text-center text-gray-500">
                       No tabs available
                     </div>

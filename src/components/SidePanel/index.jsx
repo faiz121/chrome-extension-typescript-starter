@@ -3,7 +3,7 @@ import { Menu, Upload, Send, ChevronDown, Loader2 } from 'lucide-react';
 import FileUpload from '../FileUpload';
 import ContextSelector from '../ContextSelector';
 import LoginComponent from '../LoginComponent';
-import marked from 'marked';
+import { marked } from 'marked';
 
 const SidePanel = () => {
   const [session, setSession] = useState(null);
@@ -15,9 +15,18 @@ const SidePanel = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [pageContent, setPageContent] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const messagesEndRef = useRef(null);
   const chatContainerRef = useRef(null);
   const MAX_FILE_SIZE = 5 * 1024 * 1024;
   const MAX_FILES = 5;
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   useEffect(() => {
     const getPageContent = async () => {
@@ -63,7 +72,7 @@ const SidePanel = () => {
   };
 
   const renderMarkdown = (content) => {
-    return { __html: marked(content) };
+    return { __html: marked.parse(content) };
   };
 
   const suggestionButtons = [
@@ -154,28 +163,28 @@ const SidePanel = () => {
   const handleSuggestionClick = async (suggestion) => {
     try {
       setIsProcessing(true);
-      
+
       // Get the current active tab
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      
+
       // Send message with the tab ID
       chrome.runtime.sendMessage(
-        { 
+        {
           action: suggestion.title.toLowerCase(),
-          tabId: tab.id 
-        }, 
+          tabId: tab.id
+        },
         (response) => {
           if (chrome.runtime.lastError) {
             console.error('Error:', chrome.runtime.lastError.message);
             setIsProcessing(false);
             return;
           }
-  
+
           setMessages((prev) => [
             ...prev,
             {
               type: 'assistant',
-              content: response.summary,
+              content: response.data.message,
             },
           ]);
           setIsProcessing(false);
@@ -186,7 +195,7 @@ const SidePanel = () => {
       setIsProcessing(false);
     }
   };
-  
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -240,9 +249,9 @@ const SidePanel = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Header - Fixed at top */}
-      <div className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-10 shadow-sm">
+    <div className="flex flex-col h-screen bg-gray-100">
+      {/* Fixed Header */}
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 z-10 shadow-sm">
         <div className="flex items-center p-3">
           <button className="p-1 hover:bg-gray-100 rounded-full mr-3">
             <Menu className="w-5 h-5 text-gray-600" />
@@ -251,162 +260,170 @@ const SidePanel = () => {
           <ChevronDown className="w-5 h-5 text-gray-500 ml-2" />
         </div>
       </div>
-      {/* Main Content */}
-      <div className='flex flex-col w-full h-fullpt-14'>
-        <div className='absolute inset-0 bg-gradient-to-b from-gray-200 to-gray-100 pointer-events-none' />
-        {isLoading ? (
-          <div className='flex-1 flex items-center justify-center relative'>
-            <div className='w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin' />
-          </div>
-        ) : (
-          <>
-            {/* Welcome Message */}
-            <div className='flex-1 flex flex-col relative'>
+
+      {/* Main Content Area - Scrollable */}
+      <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex-1 overflow-y-auto">
+          {isLoading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col h-full">
               {messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <h2
-                    className="text-5xl leading-tight tracking-normal font-light"
-                    style={{ fontSize: '48px' }}
-                  >
-                    <span className='text-blue-500'>Hello</span>
-                    <span className='text-gray-400'>, </span>
-                    <span className='text-emerald-500'>how </span>
-                    <span className='text-violet-500'>can </span>
-                    <span className='text-amber-500'>I </span>
-                    <span className='text-rose-500'>help </span>
-                    <span className='text-indigo-500'>you </span>
-                    <span className='text-teal-500'>today</span>
-                    <span className='text-gray-400'>?</span>
-                  </h2>
+                <div className="flex flex-col h-full">
+                  {/* Welcome Message - Centered */}
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center">
+                      <h2 className="text-4xl leading-tight tracking-normal font-light">
+                        <span className="text-blue-500">Hello</span>
+                        <span className="text-gray-400">, </span>
+                        <span>how </span>
+                        <span>can </span>
+                        <span>I </span>
+                        <span>help </span>
+                        <br />
+                        <span className="text-blue-500">you </span>
+                        <span>today</span>
+                        <span className="text-gray-400">?</span>
+                      </h2>
+                    </div>
+                  </div>
                 </div>
               ) : (
-                <div className='flex-1 overflow-y-auto px-4 py-4 relative'>
-                  <div className='space-y-6'>
+                <div className="px-4 py-4">
+                  <div className="space-y-4">
                     {messages.map((message, index) => (
                       <div
                         key={index}
-                        className={`flex ${
-                          message.type === 'user' ? 'justify-end' : 'items-start'
-                        }`}
+                        className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}
                       >
-                        {message.type === 'assistant' && (
-                          <div className='w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-lg font-medium mr-3 mt-2'>
+                        {message.type === "assistant" && (
+                          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium mr-2 flex-shrink-0">
                             H
                           </div>
                         )}
                         <div
-                          className={`max-w-2/3 p-4 rounded-2xl ${
-                            message.type === 'user'
-                              ? 'bg-blue-500 text-white text-lg'
-                              : 'bg-gray-100 text-gray-900 text-lg'
-                          }`}
+                          className={`message-bubble relative max-w-[85%] p-3 rounded-2xl shadow-sm ${message.type === "user"
+                              ? "bg-blue-500 text-white"
+                              : "bg-white text-gray-900"
+                            }`}
                         >
-                          {message.content}
+                          <div
+                            className="prose prose-sm max-w-none"
+                            style={{ fontSize: "14px", lineHeight: "1.5" }}
+                            dangerouslySetInnerHTML={
+                              message.content ? renderMarkdown(message.content) : null
+                            }
+                          />
                         </div>
                       </div>
                     ))}
                     {isProcessing && (
-                      <div className='flex items-start'>
-                  <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-lg font-medium mr-3">
-                  H
+                      <div className="flex items-start">
+                        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium mr-2">
+                          H
                         </div>
-                        <div className="bg-gray-100 rounded-2xl p-4">
-                    <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        <div className="bg-white rounded-2xl p-4 shadow-sm">
+                          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                         </div>
                       </div>
                     )}
+                    <div ref={messagesEndRef} />
                   </div>
                 </div>
               )}
+            </div>
+          )}
+        </div>
 
-              {/* Bottom Section */}
-              <div className="shrink-0 px-4 py-4 bg-gray-100 border-t border-gray-200">
-              {/* Suggestion Buttons - moved outside input container */}
-                {messages.length === 0 && ( // Removed pageContent condition
-                  <div className='grid grid-cols-2 gap-2'>
-                    {suggestionButtons.map((suggestion, index) => (
-                     <button
-                     key={index}
-                     onClick={() => handleSuggestionClick(suggestion)}
-                     className="text-left px-4 py-3 bg-white shadow-sm rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
-                   >
-                     <div className="text-sm font-medium text-gray-900">{suggestion.title}</div>
-                     <div className="text-sm text-gray-500">{suggestion.subtitle}</div>
-                   </button>
-                    ))}
-                  </div>
-                )}
+        {/* Fixed Bottom Section */}
+        <div className="flex-shrink-0 bg-gray-100 border-t border-gray-200">
+          {/* Suggestion Buttons - Only show when no messages */}
+          {messages.length === 0 && (
+            <div className="px-4 pt-4">
+              <div className="grid grid-cols-2 gap-2 w-full">
+                {suggestionButtons.map((suggestion, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="text-left px-4 py-3 bg-white shadow-sm rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="text-sm font-medium text-gray-900">{suggestion.title}</div>
+                    <div className="text-sm text-gray-500">{suggestion.subtitle}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-                {/* Files display - moved outside input container */}
-                {messages.length === 0 && files.length > 0 && (
-                  <div className='mb-2'>
-                    <FileUpload files={files} onRemoveFile={handleRemoveFile} />
-                  </div>
-                )}
+          {/* Input Section */}
+          <div className="px-4 py-4">
+            {/* Files display */}
+            {files.length > 0 && (
+              <div className="mb-2">
+                <FileUpload files={files} onRemoveFile={handleRemoveFile} />
+              </div>
+            )}
 
-                {/* Input Area */}
-                <div className="relative bg-white shadow-sm rounded-3xl border border-gray-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
-                <form
-                    onSubmit={(e) => {
+            {/* Input Area */}
+            <div className="relative bg-white shadow-sm rounded-3xl border border-gray-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (inputValue.trim() || selectedFiles.length > 0) {
+                    handleSubmit(e);
+                  }
+                }}
+                className="flex items-center"
+              >
+                <div className="pl-2">
+                  <label className="cursor-pointer p-1.5 hover:bg-gray-100 rounded-full">
+                    <input
+                      type="file"
+                      onChange={(e) => handleFileUpload(e.target.files)}
+                      className="hidden"
+                      accept=".pdf"
+                      multiple
+                    />
+                    <Upload className="w-5 h-5 text-gray-500" />
+                  </label>
+                </div>
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="Message Helion..."
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       if (inputValue.trim() || selectedFiles.length > 0) {
                         handleSubmit(e);
                       }
+                    }
+                  }}
+                  className="flex-1 px-3 h-[45px] bg-transparent border-none text-base focus:outline-none"
+                />
+                <div className="flex items-center space-x-1 pr-2">
+                  <ContextSelector
+                    files={files}
+                    onTabsChange={(selectedTabs) => {
+                      console.log("Selected tabs:", selectedTabs);
                     }}
-                    className='flex items-center'
+                    onFilesChange={handleAttachmentsChange}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!inputValue.trim() && selectedFiles.length === 0}
+                    className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-full disabled:opacity-50"
                   >
-                    <div className='pl-2'>
-                      <label
-                        className='cursor-pointer p-1.5 hover:bg-gray-100 rounded-full'
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          type='file'
-                          onChange={(e) => handleFileUpload(e.target.files)}
-                          className='hidden'
-                          accept='.pdf'
-                          multiple
-                        />
-                        <Upload className='w-5 h-5 text-gray-500' />
-                      </label>
-                    </div>
-                    <input
-                      type='text'
-                      value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
-                      placeholder='Message Helion...'
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          if (inputValue.trim() || selectedFiles.length > 0) {
-                            handleSubmit(e);
-                          }
-                        }
-                      }}
-                      className='flex-1 px-3 h-[45px] bg-transparent border-none text-base focus:outline-none'
-                    />
-                    <div className='flex items-center space-x-1 pr-2'>
-                      <ContextSelector
-                        files={files}
-                        onTabsChange={(selectedTabs) => {
-                          console.log('Selected tabs:', selectedTabs);
-                        }}
-                        onFilesChange={handleAttachmentsChange}
-                      />
-                      <button
-                        type='submit'
-                        disabled={!inputValue.trim() && selectedFiles.length === 0}
-                        className='p-1.5 text-gray-500 hover:bg-gray-100 rounded-full disabled:opacity-50'
-                      >
-                        <Send className='w-5 h-5' />
-                      </button>
-                    </div>
-                  </form>
+                    <Send className="w-5 h-5" />
+                  </button>
                 </div>
-              </div>
+              </form>
             </div>
-          </>
-        )}
+          </div>
+        </div>
       </div>
     </div>
   );
