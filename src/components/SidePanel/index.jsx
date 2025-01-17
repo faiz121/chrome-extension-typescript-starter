@@ -3,6 +3,7 @@ import { Menu, Upload, Send, ChevronDown, Loader2 } from 'lucide-react';
 import FileUpload from '../FileUpload';
 import ContextSelector from '../ContextSelector';
 import LoginComponent from '../LoginComponent';
+import marked from 'marked';
 
 const SidePanel = () => {
   const [session, setSession] = useState(null);
@@ -24,7 +25,7 @@ const SidePanel = () => {
         setIsLoading(true);
         // Remove this since we don't actually need the page content for suggestions
         // const content = document.body.innerText;
-        setPageContent(true);  // Just set it to true since we only use it as a boolean check
+        setPageContent(true); // Just set it to true since we only use it as a boolean check
       } catch (error) {
         console.error('Error getting page content:', error);
       } finally {
@@ -34,6 +35,8 @@ const SidePanel = () => {
 
     getPageContent();
   }, []);
+
+
 
   useEffect(() => {
     // Check for existing session
@@ -59,11 +62,15 @@ const SidePanel = () => {
     setSession(newSession);
   };
 
+  const renderMarkdown = (content) => {
+    return { __html: marked(content) };
+  };
+
   const suggestionButtons = [
-    { title: "Summarize", subtitle: "this page" },
-    { title: "Give me", subtitle: "key highlights" },
-    { title: "Extract", subtitle: "action items" },
-    { title: "Find", subtitle: "main topics" }
+    { title: 'Summarize', subtitle: 'this page' },
+    { title: 'Give me', subtitle: 'key highlights' },
+    { title: 'Extract', subtitle: 'action items' },
+    { title: 'Find', subtitle: 'main topics' },
   ];
 
   const validateFile = (file) => {
@@ -88,41 +95,39 @@ const SidePanel = () => {
       newFiles.forEach(validateFile);
 
       // Check for duplicates
-      const duplicates = newFiles.filter(newFile =>
-        files.some(existingFile => existingFile.name === newFile.name)
+      const duplicates = newFiles.filter((newFile) =>
+        files.some((existingFile) => existingFile.name === newFile.name)
       );
       if (duplicates.length > 0) {
         throw new Error('Some files have already been added');
       }
 
       // Add all files with uploading status
-      const filesWithStatus = newFiles.map(file => ({
+      const filesWithStatus = newFiles.map((file) => ({
         file,
         name: file.name,
-        status: 'uploading'
+        status: 'uploading',
       }));
 
-      setFiles(prev => [...prev, ...filesWithStatus]);
-      setSelectedFiles(prev => [...prev, ...filesWithStatus]); // Auto-select new files
+      setFiles((prev) => [...prev, ...filesWithStatus]);
+      setSelectedFiles((prev) => [...prev, ...filesWithStatus]); // Auto-select new files
 
       // Upload files sequentially
       for (const fileData of filesWithStatus) {
         try {
           await chrome.runtime.sendMessage({
             action: 'uploadFile',
-            file: await fileToBase64(fileData.file)
+            file: await fileToBase64(fileData.file),
           });
 
           // Update status to completed
-          setFiles(prev => prev.map(f =>
-            f.name === fileData.name
-              ? { ...f, status: 'completed' }
-              : f
-          ));
+          setFiles((prev) =>
+            prev.map((f) => (f.name === fileData.name ? { ...f, status: 'completed' } : f))
+          );
         } catch (error) {
           // Remove failed file
-          setFiles(prev => prev.filter(f => f.name !== fileData.name));
-          setSelectedFiles(prev => prev.filter(f => f.name !== fileData.name));
+          setFiles((prev) => prev.filter((f) => f.name !== fileData.name));
+          setSelectedFiles((prev) => prev.filter((f) => f.name !== fileData.name));
           console.error(`Error uploading ${fileData.name}:`, error);
         }
       }
@@ -137,31 +142,51 @@ const SidePanel = () => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => resolve(reader.result.split(',')[1]);
-      reader.onerror = error => reject(error);
+      reader.onerror = (error) => reject(error);
     });
   };
 
   const handleRemoveFile = (index) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSuggestionClick = (suggestion) => {
-    setIsProcessing(true);
-    chrome.runtime.sendMessage({ action: suggestion.title.toLowerCase() }, (response) => {
-      if (chrome.runtime.lastError) {
-        console.error('Error:', chrome.runtime.lastError.message);
-        setIsProcessing(false);
-        return;
-      }
+  const handleSuggestionClick = async (suggestion) => {
+    try {
+      setIsProcessing(true);
+      
+      // Get the current active tab
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      
+      // Send message with the tab ID
+      chrome.runtime.sendMessage(
+        { 
+          action: suggestion.title.toLowerCase(),
+          tabId: tab.id 
+        }, 
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('Error:', chrome.runtime.lastError.message);
+            setIsProcessing(false);
+            return;
+          }
   
-      setMessages((prev) => [...prev, {
-        type: 'assistant',
-        content: response.data.message,
-      }]);
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: 'assistant',
+              content: response.summary,
+            },
+          ]);
+          setIsProcessing(false);
+        }
+      );
+    } catch (error) {
+      console.error('Error getting current tab:', error);
       setIsProcessing(false);
-    });
+    }
   };
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -173,20 +198,23 @@ const SidePanel = () => {
     const newMessage = {
       type: 'user',
       content: inputValue,
-      files: selectedFiles.map(f => f.name)
+      files: selectedFiles.map((f) => f.name),
     };
 
-    setMessages(prev => [...prev, newMessage]);
+    setMessages((prev) => [...prev, newMessage]);
     setInputValue('');
 
     // Keep files in the attachment selector but remove the pills
     setIsProcessing(true);
 
     setTimeout(() => {
-      setMessages(prev => [...prev, {
-        type: 'assistant',
-        content: 'This is a simulated response...'
-      }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: 'assistant',
+          content: 'This is a simulated response...',
+        },
+      ]);
       setIsProcessing(false);
     }, 1000);
   };
@@ -197,23 +225,23 @@ const SidePanel = () => {
 
   if (isLoadingSession) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      <div className='flex h-screen items-center justify-center'>
+        <Loader2 className='w-8 h-8 text-blue-500 animate-spin' />
       </div>
     );
   }
 
   if (!session) {
     return (
-      <div className="flex h-screen items-center justify-center bg-white">
+      <div className='flex h-screen items-center justify-center bg-white'>
         <LoginComponent onLogin={handleLogin} />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-100"> {/* Using a darker gray background */}
-      {/* Header */}
+    <div className="flex h-screen bg-gray-100">
+      {/* Header - Fixed at top */}
       <div className="fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-10 shadow-sm">
         <div className="flex items-center p-3">
           <button className="p-1 hover:bg-gray-100 rounded-full mr-3">
@@ -223,59 +251,67 @@ const SidePanel = () => {
           <ChevronDown className="w-5 h-5 text-gray-500 ml-2" />
         </div>
       </div>
-
       {/* Main Content */}
-      <div className="flex flex-col w-full pt-14">
-        <div className="absolute inset-0 bg-gradient-to-b from-gray-200 to-gray-100 pointer-events-none" />
+      <div className='flex flex-col w-full h-fullpt-14'>
+        <div className='absolute inset-0 bg-gradient-to-b from-gray-200 to-gray-100 pointer-events-none' />
         {isLoading ? (
-          <div className="flex-1 flex items-center justify-center relative">
-            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <div className='flex-1 flex items-center justify-center relative'>
+            <div className='w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin' />
           </div>
         ) : (
           <>
             {/* Welcome Message */}
-            <div className="flex-1 flex flex-col relative">
+            <div className='flex-1 flex flex-col relative'>
               {messages.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center text-center px-4">
-                  <h2 className="text-5xl leading-tight tracking-normal font-light" style={{ fontSize: '48px' }}>
-                    <span className="text-blue-500">Hello</span>
-                    <span className="text-gray-400">, </span>
-                    <span className="text-emerald-500">how </span>
-                    <span className="text-violet-500">can </span>
-                    <span className="text-amber-500">I </span>
-                    <span className="text-rose-500">help </span>
-                    <span className="text-indigo-500">you </span>
-                    <span className="text-teal-500">today</span>
-                    <span className="text-gray-400">?</span>
+                <div className="flex items-center justify-center h-full">
+                  <h2
+                    className="text-5xl leading-tight tracking-normal font-light"
+                    style={{ fontSize: '48px' }}
+                  >
+                    <span className='text-blue-500'>Hello</span>
+                    <span className='text-gray-400'>, </span>
+                    <span className='text-emerald-500'>how </span>
+                    <span className='text-violet-500'>can </span>
+                    <span className='text-amber-500'>I </span>
+                    <span className='text-rose-500'>help </span>
+                    <span className='text-indigo-500'>you </span>
+                    <span className='text-teal-500'>today</span>
+                    <span className='text-gray-400'>?</span>
                   </h2>
                 </div>
               ) : (
-                <div className="flex-1 overflow-y-auto px-4 py-4 relative">
-                  <div className="space-y-6">
+                <div className='flex-1 overflow-y-auto px-4 py-4 relative'>
+                  <div className='space-y-6'>
                     {messages.map((message, index) => (
-                      <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'items-start'}`}>
+                      <div
+                        key={index}
+                        className={`flex ${
+                          message.type === 'user' ? 'justify-end' : 'items-start'
+                        }`}
+                      >
                         {message.type === 'assistant' && (
-                          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-lg font-medium mr-3 mt-2">
+                          <div className='w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-lg font-medium mr-3 mt-2'>
                             H
                           </div>
                         )}
                         <div
-                          className={`max-w-2/3 p-4 rounded-2xl ${message.type === 'user'
-                            ? 'bg-blue-500 text-white text-lg'
-                            : 'bg-gray-100 text-gray-900 text-lg'
-                            }`}
+                          className={`max-w-2/3 p-4 rounded-2xl ${
+                            message.type === 'user'
+                              ? 'bg-blue-500 text-white text-lg'
+                              : 'bg-gray-100 text-gray-900 text-lg'
+                          }`}
                         >
                           {message.content}
                         </div>
                       </div>
                     ))}
                     {isProcessing && (
-                      <div className="flex items-start">
-                        <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-lg font-medium mr-3">
-                          H
+                      <div className='flex items-start'>
+                  <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-lg font-medium mr-3">
+                  H
                         </div>
                         <div className="bg-gray-100 rounded-2xl p-4">
-                          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                         </div>
                       </div>
                     )}
@@ -284,61 +320,61 @@ const SidePanel = () => {
               )}
 
               {/* Bottom Section */}
-              <div className="px-4 space-y-4 mb-4 relative">
-                {/* Suggestion Buttons - moved outside input container */}
-                {messages.length === 0 && (  // Removed pageContent condition
-                  <div className="grid grid-cols-2 gap-2">
+              <div className="shrink-0 px-4 py-4 bg-gray-100 border-t border-gray-200">
+              {/* Suggestion Buttons - moved outside input container */}
+                {messages.length === 0 && ( // Removed pageContent condition
+                  <div className='grid grid-cols-2 gap-2'>
                     {suggestionButtons.map((suggestion, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleSuggestionClick(suggestion)}
-                        className="text-left px-4 py-3 bg-white shadow-sm rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="text-sm font-medium text-gray-900">{suggestion.title}</div>
-                        <div className="text-sm text-gray-500">{suggestion.subtitle}</div>
-                      </button>
+                     <button
+                     key={index}
+                     onClick={() => handleSuggestionClick(suggestion)}
+                     className="text-left px-4 py-3 bg-white shadow-sm rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+                   >
+                     <div className="text-sm font-medium text-gray-900">{suggestion.title}</div>
+                     <div className="text-sm text-gray-500">{suggestion.subtitle}</div>
+                   </button>
                     ))}
                   </div>
                 )}
 
                 {/* Files display - moved outside input container */}
                 {messages.length === 0 && files.length > 0 && (
-                  <div className="mb-2">
+                  <div className='mb-2'>
                     <FileUpload files={files} onRemoveFile={handleRemoveFile} />
                   </div>
                 )}
 
                 {/* Input Area */}
                 <div className="relative bg-white shadow-sm rounded-3xl border border-gray-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
-                  <form
+                <form
                     onSubmit={(e) => {
                       e.preventDefault();
                       if (inputValue.trim() || selectedFiles.length > 0) {
                         handleSubmit(e);
                       }
                     }}
-                    className="flex items-center"
+                    className='flex items-center'
                   >
-                    <div className="pl-2">
+                    <div className='pl-2'>
                       <label
-                        className="cursor-pointer p-1.5 hover:bg-gray-100 rounded-full"
+                        className='cursor-pointer p-1.5 hover:bg-gray-100 rounded-full'
                         onClick={(e) => e.stopPropagation()}
                       >
                         <input
-                          type="file"
+                          type='file'
                           onChange={(e) => handleFileUpload(e.target.files)}
-                          className="hidden"
-                          accept=".pdf"
+                          className='hidden'
+                          accept='.pdf'
                           multiple
                         />
-                        <Upload className="w-5 h-5 text-gray-500" />
+                        <Upload className='w-5 h-5 text-gray-500' />
                       </label>
                     </div>
                     <input
-                      type="text"
+                      type='text'
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
-                      placeholder="Message Helion..."
+                      placeholder='Message Helion...'
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
@@ -347,9 +383,9 @@ const SidePanel = () => {
                           }
                         }
                       }}
-                      className="flex-1 px-3 h-[45px] bg-transparent border-none text-base focus:outline-none"
+                      className='flex-1 px-3 h-[45px] bg-transparent border-none text-base focus:outline-none'
                     />
-                    <div className="flex items-center space-x-1 pr-2">
+                    <div className='flex items-center space-x-1 pr-2'>
                       <ContextSelector
                         files={files}
                         onTabsChange={(selectedTabs) => {
@@ -358,11 +394,11 @@ const SidePanel = () => {
                         onFilesChange={handleAttachmentsChange}
                       />
                       <button
-                        type="submit"
+                        type='submit'
                         disabled={!inputValue.trim() && selectedFiles.length === 0}
-                        className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-full disabled:opacity-50"
+                        className='p-1.5 text-gray-500 hover:bg-gray-100 rounded-full disabled:opacity-50'
                       >
-                        <Send className="w-5 h-5" />
+                        <Send className='w-5 h-5' />
                       </button>
                     </div>
                   </form>
