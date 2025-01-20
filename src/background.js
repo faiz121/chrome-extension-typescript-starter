@@ -93,6 +93,16 @@ async function handleFileUpload(fileData) {
     return { success: true };
   }
 
+  chrome.commands.onCommand.addListener((command) => {
+    console.log(`Command "${command}" triggered`);
+    if (command === '_execute_side_panel') {
+      chrome.sidePanel.open();
+    }
+  });
+
+  chrome.sidePanel
+  .setPanelBehavior({ openPanelOnActionClick: true })
+  .catch((error) => console.error(error));
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'AUTH_SUCCESS') {
         // Broadcast session update to all extension views

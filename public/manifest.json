@@ -10,6 +10,7 @@
   },
 
   "action": {
+    "default_title": "Click to open panel",
     "default_icon": "icon.png",
     "default_popup": "popup.html"
   },
@@ -26,7 +27,7 @@
     "_execute_side_panel": {
       "suggested_key": {
         "default": "Ctrl+B",
-        "mac": "Command+B"
+        "mac": "MacCtrl+B"
       },
       "description": "Toggle Side Panel"
     }
