@@ -1,7 +1,40 @@
-import React from 'react';
-import { Settings, MessageSquare, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { 
+  Settings, 
+  MessageSquare, 
+  ChevronDown, 
+  Search, 
+  Network, 
+  Globe, 
+  Trash2,
+  ExternalLink,
+  LogOut
+} from 'lucide-react';
 
-const SlidingPanel = ({ isOpen, onClose, username, onSettingsClick }) => {
+const SlidingPanel = ({ 
+  isOpen, 
+  onClose, 
+  username, 
+  onSettingsClick, 
+  onChatSelect, 
+  onDeleteChat,
+  onSignOut
+}) => {
+  const [recentChats, setRecentChats] = useState([]);
+
+  useEffect(() => {
+    if (!isOpen || !username) return;
+
+    chrome.storage.local.get([`recentChats_${username}`], (result) => {
+      const userChats = result[`recentChats_${username}`] || [];
+      setRecentChats(userChats);
+    });
+  }, [isOpen, username]);
+
+  const handleDeleteChat = (chatId) => {
+    onDeleteChat(chatId);
+  };
+
   return (
     <>
       {/* Backdrop */}
@@ -17,53 +50,110 @@ const SlidingPanel = ({ isOpen, onClose, username, onSettingsClick }) => {
           transition-transform duration-300 ease-in-out z-50
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
+        <div className="flex flex-col h-full">
         {/* Header */}
         <div className="px-4 py-3 flex items-center justify-between border-b border-gray-100">
           <div className="flex items-center gap-2">
             <span className="text-lg">Helion Assistant</span>
             <ChevronDown className="w-4 h-4 text-gray-500" />
           </div>
-          <div style={{ width: '32px', height: '32px' }} className="rounded-full bg-orange-500 flex items-center justify-center text-white text-sm font-medium">
-            F
-          </div>
         </div>
 
+        {/* Main Content Area */}
         <div className="flex flex-col h-[calc(100%-56px)]">
-          {/* Recent chats section */}
-          <div className="px-4 pt-4">
+          {/* Search Options */}
+          <div className="flex justify-around py-3 border-b border-gray-100">
+            <button 
+              className="flex flex-col items-center text-xs text-gray-600 hover:bg-gray-100 p-2 rounded-lg"
+            >
+              <Globe className="w-6 h-6 text-blue-500 mb-1" />
+              Perplexity
+            </button>
+            <button 
+              className="flex flex-col items-center text-xs text-gray-600 hover:bg-gray-100 p-2 rounded-lg"
+            >
+              <Network className="w-6 h-6 text-green-500 mb-1" />
+              Cosmos
+            </button>
+            <button 
+              className="flex flex-col items-center text-xs text-gray-600 hover:bg-gray-100 p-2 rounded-lg"
+            >
+              <Search className="w-6 h-6 text-purple-500 mb-1" />
+              Local
+            </button>
+          </div>
+
+          {/* Recent Chats */}
+          <div className="flex-1 overflow-y-auto px-4 pt-4">
             <h3 className="text-base text-gray-500 mb-2">Recent</h3>
             <div className="space-y-4">
-              {[
-                'Pythagorean Theorem Explanation',
-                'System Message Bubble Component',
-                'Chrome Extension for Work'
-              ].map((chat, index) => (
-                <button
-                  key={index}
-                  className="w-full text-left flex items-center gap-3 text-base hover:bg-gray-100 rounded-lg"
+              {recentChats.map((chat) => (
+                <div 
+                  key={chat.id}
+                  className="group flex items-stretch border rounded-lg overflow-hidden hover:bg-gray-100 border-transparent"
                 >
-                  <MessageSquare className="w-5 h-5 text-gray-400 flex-shrink-0" />
-                  <span className="truncate">{chat}</span>
-                </button>
+                  <button
+                    onClick={() => onChatSelect && onChatSelect(chat)}
+                    className="flex-1 flex items-center gap-3 text-left p-2 min-w-0"
+                  >
+                      <MessageSquare className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate font-medium text-sm">
+                          {chat.title}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {chat.firstMessage.substring(0, 30)}...
+                        </div>
+                      </div>
+                      </button>
+                  <div className="flex items-center border-l">
+                    <button 
+                      onClick={() => handleDeleteChat(chat.id)}
+                      className="p-2 hover:bg-red-100 transition-colors"
+                      aria-label="Delete chat"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
-          
-          <button className="w-full text-left px-4 py-4 text-base text-gray-600 hover:bg-gray-50">
-            Show more
-          </button>
 
-          {/* Settings at the bottom */}
-          <div className="mt-auto">
+          {/* Footer Section */}
+          <div className="mt-auto border-t">
+            <a 
+              href="https://forms.office.com/r/asBrWc3ECQ"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full text-left px-4 py-3 hover:bg-gray-100 flex items-center gap-3 text-base border-b"
+            >
+              <ExternalLink className="w-5 h-5 text-gray-400" />
+              <span>Feedback</span>
+            </a>
+            <button 
+              className="w-full text-left px-4 py-3 hover:bg-gray-100 flex items-center gap-3 text-base border-b"
+            >
+              <ExternalLink className="w-5 h-5 text-gray-400" />
+              <span>Bug Report</span>
+            </button>
             <button 
               onClick={onSettingsClick}
-              className="w-full text-left px-4 py-3 hover:bg-gray-100 flex items-center gap-3 text-base"
+              className="w-full text-left px-4 py-3 hover:bg-gray-100 flex items-center gap-3 text-base border-b"
             >
               <Settings className="w-5 h-5 text-gray-400" />
               <span>Settings</span>
             </button>
+            <button
+              onClick={onSignOut}
+              className="w-full text-left px-4 py-3 hover:bg-gray-100 flex items-center gap-3 text-base"
+            >
+              <LogOut className="w-5 h-5 text-gray-400" />
+              <span>Sign Out</span>
+            </button>
           </div>
         </div>
+      </div>
       </div>
     </>
   );
