@@ -10,6 +10,7 @@ module.exports = {
     background: path.join(srcDir, 'background.js'),
     content_script: path.join(srcDir, 'content_script.jsx'),
     sidepanel: path.join(srcDir, 'sidepanel.jsx'),
+    preview: path.join(srcDir, 'preview.js'),
     'auth-redirect': path.join(srcDir, 'auth-redirect.js')
   },
   output: {
@@ -32,7 +33,7 @@ module.exports = {
         exclude: /node_modules/,
       },
       {
-        test: /\.jsx?$/,  // Separate rule for .js and .jsx files
+        test: /\.jsx?$/,
         use: {
           loader: "babel-loader",
           options: {
@@ -43,6 +44,17 @@ module.exports = {
           }
         },
         exclude: /node_modules/,
+      },
+      {
+        test: /\.css$/,
+        use: [
+          'style-loader',
+          {
+            loader: 'css-loader',
+            options: { importLoaders: 1 }
+          },
+          'postcss-loader'
+        ]
       }
     ],
   },
@@ -55,4 +67,4 @@ module.exports = {
       options: {},
     }),
   ],
-};
+}
