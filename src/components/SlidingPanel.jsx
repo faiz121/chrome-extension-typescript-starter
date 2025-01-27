@@ -26,11 +26,16 @@ const SlidingPanel = ({
 
   useEffect(() => {
     if (!isOpen || !username) return;
+
     chrome.storage.local.get([`recentChats_${username}`], (result) => {
       const userChats = result[`recentChats_${username}`] || [];
       setRecentChats(userChats);
     });
   }, [isOpen, username]);
+
+  const handleDeleteChat = (chatId) => {
+    onDeleteChat(chatId);
+  };
 
   return (
     <>
