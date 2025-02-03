@@ -42,11 +42,13 @@ const SystemMessageBubble = ({ content, isLoading, title, contextIndicator }) =>
   const [isExpanded, setIsExpanded] = useState(false);
   const contentRef = useRef(null);
   const [shouldShowExpand, setShouldShowExpand] = useState(false);
+  const [contentHeight, setContentHeight] = useState(0);
 
   useEffect(() => {
     if (contentRef.current && !isLoading) {
-      const contentHeight = contentRef.current.scrollHeight;
-      setShouldShowExpand(contentHeight > 180);
+      const height = contentRef.current.scrollHeight;
+      setContentHeight(height);
+      setShouldShowExpand(height > 180);
     }
   }, [content, isLoading]);
 
@@ -57,9 +59,9 @@ const SystemMessageBubble = ({ content, isLoading, title, contextIndicator }) =>
         <Sparkles className="w-5 h-5" />
       </div>
       
-      <div className="relative w-[400px] max-w-full rounded-2xl bg-white shadow-sm overflow-hidden">
-      {contextIndicator && (
-          <div className="absolute top-0 left-0 right-0 bg-blue-50 text-blue-600 text-xs px-3 py-1.2 rounded-t-2xl border-b border-gray-200">
+      <div className="relative w-[400px] max-w-full rounded-2xl bg-white shadow-sm">
+        {contextIndicator && (
+          <div className="absolute top-0 left-0 right-0 bg-blue-50 text-blue-600 text-xs px-3 py-1.5 rounded-t-2xl border-b border-gray-200">
             {contextIndicator}
           </div>
         )}
@@ -71,22 +73,32 @@ const SystemMessageBubble = ({ content, isLoading, title, contextIndicator }) =>
               ref={contentRef}
               className="font-sans text-base transition-all duration-300 ease-in-out prose"
               style={{ 
-                maxHeight: isExpanded ? '1000px' : '180px',
+                maxHeight: isExpanded ? `${contentHeight}px` : '180px',
                 overflow: 'hidden',
               }}
             >
               {isLoading ? (
                 <LoadingContent />
               ) : (
-                <ReactMarkdown className="prose">{content}</ReactMarkdown>
+                <ReactMarkdown 
+                className="prose prose-sm prose-slate"
+                 components={{
+                    h1: ({node, ...props}) => <h1 {...props} className="text-2xl font-bold my-4"/>,
+                    h2: ({node, ...props}) => <h2 {...props} className="text-xl font-semibold my-3"/>,
+                    h3: ({node, ...props}) => <h3 {...props} className="text-lg font-medium my-2"/>,
+                    ul: ({node, ...props}) => <ul {...props} className="list-disc list-inside my-2"/>,
+                    li: ({node, ...props}) => <li {...props} className="my-1"/>
+                  }}
+              >{content}</ReactMarkdown>
               )}
             </div>
             
             {!isExpanded && shouldShowExpand && !isLoading && (
               <div 
-                className="absolute bottom-0 left-0 right-0 h-24 pointer-events-none"
+                className="absolute bottom-0 left-0 right-0 h-24"
                 style={{
-                  background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.5) 30%, rgba(255,255,255,0.8) 60%, rgba(255,255,255,1) 100%)'
+                  background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.5) 30%, rgba(255,255,255,0.8) 60%, rgba(255,255,255,1) 100%)',
+                  pointerEvents: 'none'
                 }}
               />
             )}

@@ -19,7 +19,8 @@ const SlidingPanel = ({
   onSettingsClick, 
   onChatSelect, 
   onDeleteChat,
-  onSignOut
+  onSignOut,
+  key
 }) => {
   const [showSignOut, setShowSignOut] = useState(false);
   const [recentChats, setRecentChats] = useState([]);
@@ -31,7 +32,7 @@ const SlidingPanel = ({
       const userChats = result[`recentChats_${username}`] || [];
       setRecentChats(userChats);
     });
-  }, [isOpen, username]);
+  }, [isOpen, username, key]);
 
   const handleDeleteChat = (chatId) => {
     onDeleteChat(chatId);
@@ -125,13 +126,13 @@ const SlidingPanel = ({
                 <ExternalLink className="w-5 h-5 text-gray-400" />
                 <span>Feedback</span>
               </a>
-              <button 
+              {/* <button 
                 className="w-full text-left px-4 py-3 hover:bg-gray-100 flex items-center gap-3 text-base border-b"
               >
                 <ExternalLink className="w-5 h-5 text-gray-400" />
                 <span>Bug Report</span>
               </button>
-              
+               */}
               <div className="flex items-center justify-between px-4 py-3 hover:bg-gray-100">
                 <button 
                   onClick={onSettingsClick}

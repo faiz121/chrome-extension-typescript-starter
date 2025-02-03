@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Save, Check, X } from 'lucide-react';
-import SystemMessageBubble from './SystemMessageBubble';
+import MessageBubble from './MessageBubble';
 
 const AIGateway = ({ username, currentGradient }) => {
   const [model, setModel] = useState('auto');
@@ -68,16 +68,22 @@ const AIGateway = ({ username, currentGradient }) => {
   const handleSend = async () => {
     if (!userPrompt.trim()) return;
     const message = { prompt: systemPrompt, text: userPrompt };
-    
-    setMessages(prev => [...prev, { role: 'user', content: userPrompt }]);
-    setUserPrompt('');
-    setIsPromptPanelVisible(false);
+    console.log('systemPrompt', systemPrompt)
+    console.log('userPrompt', userPrompt)
     setIsLoading(true);
-
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const mockResponse = `Here's a simulated response to: "${userPrompt}"`;
-    setMessages(prev => [...prev, { role: 'assistant', content: mockResponse }]);
-    setIsLoading(false);
+    setUserPrompt('');
+    setMessages(prev => [...prev, { role: 'user', content: userPrompt }]);
+    setIsPromptPanelVisible(false);
+    chrome.runtime.sendMessage(
+      {
+        action: 'customLLMCall',
+        message
+      },
+      (response) => {
+        setMessages(prev => [...prev, { role: 'assistant', content: response.data }]);
+        setIsLoading(false);
+      }
+    );
   };
 
   useEffect(() => {
@@ -92,7 +98,7 @@ const AIGateway = ({ username, currentGradient }) => {
         {messages.map((message, index) => (
           <div key={index} className="mb-4">
             {message.role === 'assistant' ? (
-              <SystemMessageBubble content={message.content} />
+              <MessageBubble content={message.content} />
             ) : (
               <div className="flex justify-end">
                 <div className="bg-blue-500 text-white rounded-lg px-4 py-2 max-w-[85%]">
@@ -102,7 +108,7 @@ const AIGateway = ({ username, currentGradient }) => {
             )}
           </div>
         ))}
-        {isLoading && <SystemMessageBubble content="Loading..." isLoading={true} />}
+        {isLoading && <MessageBubble content="Loading..." isLoading={true} />}
         <div ref={messagesEndRef} />
       </div>
       
@@ -116,7 +122,8 @@ const AIGateway = ({ username, currentGradient }) => {
               <select
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg shadow-sm hover:bg-gray-50 cursor-pointer"
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg shadow-sm cursor-not-allowed"
+                disabled
               >
                 {models.map((m) => (
                   <option key={m.id} value={m.id}>{m.name}</option>
@@ -182,7 +189,7 @@ const AIGateway = ({ username, currentGradient }) => {
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  handleSend();
+                  handleSend(e.target.value);
                 }
               }}
             />
