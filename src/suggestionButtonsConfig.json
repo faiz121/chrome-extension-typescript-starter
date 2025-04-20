@@ -1,0 +1,22 @@
+[
+  {
+    "urlPattern": "",
+    "buttons": [
+      { "title": "Summarize", "subtitle": "this page", "icon": "FileText", "key": "summarize" },
+      { "title": "Give me", "subtitle": "key highlights", "icon": "List", "key": "highlights" }
+    ]
+  },
+  {
+    "urlPattern": "",
+    "buttons": [
+      { "title": "Summarize", "subtitle": "this page", "icon": "FileText", "key": "summarize" },
+      { "title": "Give me", "subtitle": "key highlights", "icon": "List", "key": "highlights" }
+    ]
+  },
+  {
+    "urlPattern": "*",
+    "buttons": [
+      { "title": "Summarize", "subtitle": "this page", "icon": "FileText", "key": "summarize" }
+    ]
+  }
+]

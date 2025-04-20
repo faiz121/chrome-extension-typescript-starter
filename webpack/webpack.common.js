@@ -5,12 +5,10 @@ const srcDir = path.join(__dirname, "..", "src");
 
 module.exports = {
   entry: {
-    popup: path.join(srcDir, 'popup.js'),
     options: path.join(srcDir, 'options.tsx'),
     background: path.join(srcDir, 'background.js'),
     content_script: path.join(srcDir, 'content_script.jsx'),
     sidepanel: path.join(srcDir, 'sidepanel.jsx'),
-    preview: path.join(srcDir, 'preview.js'),
     'auth-redirect': path.join(srcDir, 'auth-redirect.js')
   },
   output: {

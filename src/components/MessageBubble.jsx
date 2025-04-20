@@ -5,7 +5,10 @@ import ReactMarkdown from "react-markdown";
 const LoadingBar = ({ delay = 0, width, gradient }) => (
   <div 
     className="h-5 rounded-sm overflow-hidden bg-blue-50"
-    style={{ width }}
+    style={{ 
+      width: `min(${width}, 100%)`,  // Constrain to parent width
+      maxWidth: '300px'  // Add max-width limit
+    }}
   >
     <div
       className="h-full w-[200%]"
@@ -19,19 +22,19 @@ const LoadingBar = ({ delay = 0, width, gradient }) => (
 );
 
 const LoadingContent = () => (
-  <div className="flex flex-col gap-3">
+  <div className="flex flex-col gap-3 w-full max-w-[300px] w-fit"> {/* Add width constraints */}
     <LoadingBar 
-      width="330px" 
+      width="90%" 
       delay={0} 
       gradient="linear-gradient(90deg, transparent 0%, transparent 25%, #3B82F6 50%, transparent 75%, transparent 100%)"
     />
     <LoadingBar 
-      width="360px" 
+      width="100%" 
       delay={200} 
       gradient="linear-gradient(90deg, transparent 0%, transparent 25%, #60A5FA 50%, transparent 75%, transparent 100%)"
     />
     <LoadingBar 
-      width="300px" 
+      width="80%" 
       delay={400} 
       gradient="linear-gradient(90deg, transparent 0%, transparent 25%, #93C5FD 50%, transparent 75%, transparent 100%)"
     />
@@ -73,7 +76,7 @@ const SystemMessageBubble = ({ content, isLoading, title, contextIndicator }) =>
               ref={contentRef}
               className="font-sans text-base transition-all duration-300 ease-in-out prose"
               style={{ 
-                maxHeight: isExpanded ? `${contentHeight}px` : '180px',
+                maxHeight: isExpanded ? `${contentHeight + 100}px` : '200px',
                 overflow: 'hidden',
               }}
             >
@@ -83,9 +86,9 @@ const SystemMessageBubble = ({ content, isLoading, title, contextIndicator }) =>
                 <ReactMarkdown 
                 className="prose prose-sm prose-slate"
                  components={{
-                    h1: ({node, ...props}) => <h1 {...props} className="text-2xl font-bold my-4"/>,
-                    h2: ({node, ...props}) => <h2 {...props} className="text-xl font-semibold my-3"/>,
-                    h3: ({node, ...props}) => <h3 {...props} className="text-lg font-medium my-2"/>,
+                    h1: ({node, ...props}) => <h1 {...props} className="text-xl font-bold my-4"/>,
+                    h2: ({node, ...props}) => <h2 {...props} className="text-lg font-semibold my-3"/>,
+                    h3: ({node, ...props}) => <h3 {...props} className="text-md font-medium my-2"/>,
                     ul: ({node, ...props}) => <ul {...props} className="list-disc list-inside my-2"/>,
                     li: ({node, ...props}) => <li {...props} className="my-1"/>
                   }}

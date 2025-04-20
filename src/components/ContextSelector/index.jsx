@@ -1,21 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Loader2, X, Upload, Check, Layers } from 'lucide-react';
+import { Loader2, X, Upload, Check, Layers, AlertTriangle } from 'lucide-react';
 
 const MAX_FILES = 5;
 const MAX_TABS = 5;
 
 // Custom Popover Component
-const Popover = ({ children, content, isOpen, onOpenChange }) => {
+const Popover = ({ children, content, isOpen, onOpenChange, isContextSearchActive }) => {
+  if (!isContextSearchActive) return;
   const popoverRef = useRef(null);
   const triggerRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // if (popoverRef.current && 
-      //     !popoverRef.current.contains(event.target) &&
-      //     !triggerRef.current.contains(event.target)) {
-      //   onOpenChange(false);
-      // }
+      if (
+        popoverRef.current &&
+        !popoverRef.current.contains(event.target) &&
+        !triggerRef.current.contains(event.target)
+      ) {
+        onOpenChange(false);
+      }
     };
 
     if (isOpen) {
@@ -28,24 +31,20 @@ const Popover = ({ children, content, isOpen, onOpenChange }) => {
   }, [isOpen, onOpenChange]);
 
   const handleTriggerClick = (e) => {
+    e.preventDefault();
     e.stopPropagation();
     onOpenChange(!isOpen);
   };
 
   return (
-    <div className="relative inline-block">
-      <div
-        ref={triggerRef}
-        onClick={handleTriggerClick}
-        role="button"
-        tabIndex={0}
-      >
+    <div className='relative inline-block'>
+      <div ref={triggerRef} onClick={handleTriggerClick} role='button' tabIndex={0}>
         {children}
       </div>
       {isOpen && (
         <div
           ref={popoverRef}
-          className="fixed z-[9999] mx-auto left-1/2 transform -translate-x-1/2 bottom-16 w-80 bg-gray-100 shadow-lg rounded-2xl border border-gray-300"
+          className='fixed z-[9999] mx-auto left-1/2 transform -translate-x-1/2 bottom-16 w-80 bg-gray-100 shadow-lg rounded-2xl border border-gray-300'
         >
           {content}
         </div>
@@ -74,41 +73,51 @@ const FileItem = ({ file, onDelete, checked, onCheckChange, onRemoveFile }) => {
   }
 
   return (
-    <div className="relative flex items-center px-2 py-2 rounded-full bg-gray-100">
+    <div className='relative flex items-center px-2 py-2 rounded-full bg-gray-100'>
       <input
-        type="checkbox"
+        type='checkbox'
         checked={checked}
         disabled={file.status === 'uploading'}
         onChange={(e) => onCheckChange(file.name, e.target.checked)}
-        className="mr-2 h-4 w-4"
+        className='mr-2 h-4 w-4'
       />
-      <span className={`px-2 py-1 rounded-l-full uppercase text-xs font-semibold ${extensionBgColor} ${extensionTextColor}`}>
+      <span
+        className={`px-2 py-1 rounded-l-full uppercase text-xs font-semibold ${extensionBgColor} ${extensionTextColor}`}
+      >
         {file.extension}
       </span>
-      <span className="text-sm flex-grow truncate max-w-[200px] px-2 py-1 bg-gray-100 rounded-r-full">
+      <span className='text-sm flex-grow truncate max-w-[200px] px-2 py-1 bg-gray-100 rounded-r-full'>
         {file.name}
       </span>
       {file.status === 'uploading' ? (
-        <div className="ml-2 w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className='ml-2 w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin' />
       ) : (
         <button
           onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            onRemoveFile()
+            e.preventDefault();
+            e.stopPropagation();
+            onRemoveFile();
           }}
-          className="ml-2 p-1 hover:bg-gray-200 rounded-full transition-colors"
-          aria-label="Remove file"
+          className='ml-2 p-1 hover:bg-gray-200 rounded-full transition-colors'
+          aria-label='Remove file'
         >
-          <X className="w-4 h-4 text-gray-600" />
+          <X className='w-4 h-4 text-gray-600' />
         </button>
       )}
     </div>
   );
 };
 
-
-const FilesTab = ({ files, uploadingFiles, handleFileUpload, onDeleteFile, checkedFiles, onFileCheck, onRemoveFile }) => {
+const FilesTab = ({
+  username,
+  files,
+  uploadingFiles,
+  handleFileUpload,
+  onDeleteFile,
+  checkedFiles,
+  onFileCheck,
+  onRemoveFile,
+}) => {
   const fileInputRef = useRef(null);
   const totalFiles = files.length + uploadingFiles.length;
 
@@ -117,26 +126,37 @@ const FilesTab = ({ files, uploadingFiles, handleFileUpload, onDeleteFile, check
   };
 
   return (
-    <div className="p-4 flex flex-col" style={{ height: '350px' }}>
+    <div className='p-4 flex flex-col' style={{ height: '350px' }}>
       <input
-        type="file"
+        type='file'
         ref={fileInputRef}
-        onChange={(e) => handleFileUpload(e.target.files, fileInputRef)}
+        onChange={(e) => handleFileUpload(e.target.files, fileInputRef, username)}
         multiple
-        className="hidden"
-        accept=".pdf,.doc,.docx,.csv,.xlsx"
+        className='hidden'
+        accept='.pdf,.doc,.docx,.csv,.xlsx'
       />
-      
-      <div className="flex-1 border-2 border-dashed border-gray-300 rounded-lg p-4 mb-4 overflow-hidden">
+
+      <div className='mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg'>
+        <div className='flex gap-2'>
+          <AlertTriangle className='w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5' />
+          <div className='text-sm text-yellow-700'>
+            Only upload Class 4 or 5 data - no sensitive information or PII
+          </div>
+        </div>
+      </div>
+
+      <div className='flex-1 border-2 border-dashed border-gray-300 rounded-lg p-4 mb-4 overflow-y-auto'>
         {totalFiles === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center">
-            <Upload className="w-12 h-12 text-gray-400 mb-2" />
-            <p className="text-sm text-gray-500 mb-1">No files uploaded</p>
-            <p className="text-xs text-gray-400 mb-4">Upload PDF, Word, Excel, or CSV files to include in the context</p>
+          <div className='h-full flex flex-col items-center justify-center'>
+            <Upload className='w-12 h-12 text-gray-400 mb-2' />
+            <p className='text-sm text-gray-500 mb-1'>No files uploaded</p>
+            <p className='text-xs text-gray-400 mb-4'>
+              Upload PDF, Word, Excel, or CSV files to include in the context
+            </p>
           </div>
         ) : (
-          <div className="h-full overflow-y-auto">
-            <div className="space-y-2">
+          <div className='h-full overflow-y-auto'>
+            <div className='space-y-2'>
               {files.map((file, index) => (
                 <FileItem
                   key={file.name}
@@ -151,160 +171,168 @@ const FilesTab = ({ files, uploadingFiles, handleFileUpload, onDeleteFile, check
           </div>
         )}
       </div>
-      
-      <div className="flex flex-col items-center">
+
+      <div className='flex flex-col items-center'>
         <button
           onClick={handleUploadClick}
           disabled={totalFiles >= MAX_FILES}
-          className="w-full py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300"
+          className='w-full py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300'
         >
           Upload Files
         </button>
         {totalFiles >= MAX_FILES && (
-          <p className="text-xs text-red-500 mt-2">Maximum {MAX_FILES} files allowed</p>
+          <p className='text-xs text-red-500 mt-2'>Maximum {MAX_FILES} files allowed</p>
         )}
       </div>
     </div>
   );
 };
-// TabsTab component remains the same
 const TabsTab = ({ allTabs, selectedTabs, onTabSelect, handleTabsSubmit, error, currentTab }) => {
-  const [selectAll, setSelectAll] = useState(false);
   const [loadingTabs, setLoadingTabs] = useState(new Set());
   const [completedTabs, setCompletedTabs] = useState(new Set());
 
-  // const handleSelectAll = () => {
-  //   const newSelectAll = !selectAll;
-  //   setSelectAll(newSelectAll);
-
-  //   if (newSelectAll) {
-  //     const tabsToSelect = allTabs.slice(0, MAX_TABS);
-  //     onTabSelect(tabsToSelect.map(tab => ({ id: tab.id, processed: false }))
-  //   );
-  //   } else {
-  //     onTabSelect([]);
-  //   }
-  // };
-
-  const handleTabSelect = async (tabId) => {
-    if (selectedTabs.some(selectedTab => selectedTab.id === tabId)) {
-      onTabSelect(selectedTabs.filter(selectedTab => selectedTab.id !== tabId));
+  const handleTabSelect = async (tabId, tabName) => {
+    if (selectedTabs.some((selectedTab) => selectedTab.id === tabId)) {
+      onTabSelect(selectedTabs.filter((selectedTab) => selectedTab.id !== tabId));
     } else if (selectedTabs.length < MAX_TABS) {
       try {
-      setLoadingTabs(prev => new Set([...prev, tabId]));
-      onTabSelect([...selectedTabs, {
-        id: tabId,
-        processed: false
-      }]);
-      await handleTabsSubmit(tabId);
-      setCompletedTabs(prev => new Set([...prev, tabId]));
-    } finally {
-      setLoadingTabs(prev => {
-        const next = new Set(prev);
-        next.delete(tabId);
-        return next;
-      });
-      setTimeout(() => {
-        setCompletedTabs(prev => {
+        setLoadingTabs((prev) => new Set([...prev, tabId]));
+        onTabSelect([
+          ...selectedTabs,
+          {
+            id: tabId,
+            processed: false,
+            name: tabName,
+          },
+        ]);
+        await handleTabsSubmit(tabId, tabName);
+        setCompletedTabs((prev) => new Set([...prev, tabId]));
+      } finally {
+        setLoadingTabs((prev) => {
           const next = new Set(prev);
           next.delete(tabId);
           return next;
         });
-      }, 1000);
+        setTimeout(() => {
+          setCompletedTabs((prev) => {
+            const next = new Set(prev);
+            next.delete(tabId);
+            return next;
+          });
+        }, 1000);
+      }
     }
-  }
-}
+  };
 
   return (
-    <div className="p-4 flex flex-col" style={{ height: '350px' }}>
-      {/* <div className="flex items-center mb-4">
-        <button
-          onClick={handleSelectAll}
-          disabled={isProcessing}
-          className="text-blue-500 hover:text-blue-700 text-sm"
-        >
-          Select All
-        </button>
-      </div> */}
-      
-      {/* <div className="flex-1 border-2 border-dashed border-gray-300 rounded-lg p-4 mb-4 overflow-hidden"> */}
-        <div className="h-full overflow-y-auto">
-          <div className="space-y-2">
-            {allTabs.map((tab) => (
-              <div key={tab.id} className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={selectedTabs.some(selectedTab => selectedTab.id === tab.id)}
-                  onChange={() => {handleTabSelect(tab.id)}}
-                  disabled={loadingTabs.length > 0 || (!selectedTabs.some(selectedTab => selectedTab.id === tab.id) && selectedTabs.length >= MAX_TABS)}
-                  className="h-4 w-4 accent-blue-500 shrink-0"
-                />
-                <img src={tab.favIconUrl} alt="" className="h-6 w-6 rounded" />
-                <span className="text-sm truncate flex-1">{tab.id === currentTab.id ? `Current Tab` : tab.title}</span>
-                {loadingTabs.has(tab.id) && (
-                  <Loader2 className="w-4 h-4 text-blue-500 animate-spin ml-2" />
-                )}
-                {completedTabs.has(tab.id) && (
-                  <Check className="w-4 h-4 text-green-500 ml-2" />
-                )}
-              </div>
-            ))}
-          </div>
+    <div className='p-4 flex flex-col' style={{ height: '350px' }}>
+      <div className='h-full overflow-y-auto'>
+        <div className='space-y-2'>
+          {allTabs.map((tab) => (
+            <div key={tab.id} className='flex items-center space-x-2'>
+              <input
+                type='checkbox'
+                checked={selectedTabs.some((selectedTab) => selectedTab.id === tab.id)}
+                onChange={async () => {
+                  await handleTabSelect(tab.id, tab.title);
+                }}
+                disabled={
+                  loadingTabs.length > 0 ||
+                  (!selectedTabs.some((selectedTab) => selectedTab.id === tab.id) &&
+                    selectedTabs.length >= MAX_TABS)
+                }
+                className='h-4 w-4 accent-blue-500 shrink-0'
+              />
+              <img src={tab.favIconUrl} alt='' className='h-4 w-4 rounded' />
+              <span className='text-sm truncate flex-1'>{tab.title}</span>
+              {loadingTabs.has(tab.id) && (
+                <Loader2 className='w-4 h-4 text-blue-500 animate-spin ml-2' />
+              )}
+              {completedTabs.has(tab.id) && <Check className='w-4 h-4 text-green-500 ml-2' />}
+            </div>
+          ))}
         </div>
+      </div>
       {/* </div> */}
 
-      <div className="flex flex-col items-center">
+      <div className='flex flex-col items-center'>
         {selectedTabs.length >= MAX_TABS && (
-          <p className="text-xs text-red-500 mb-2">Maximum {MAX_TABS} tabs allowed</p>
+          <p className='text-xs text-red-500 mb-2'>Maximum {MAX_TABS} tabs allowed</p>
         )}
-        {error && (
-          <p className="text-xs text-red-500 mb-2">{error}</p>
-        )}
+        {error && <p className='text-xs text-red-500 mb-2'>{error}</p>}
       </div>
     </div>
   );
 };
 
-
 // Content Selector Panel
-const ContextSelectorPanel = ({ onClose, isContextEnabled, checkedFiles, setCheckedFiles, selectedTabs, setSelectedTabs, files, setFiles, currentTab, onRemoveFile, setIsProcessing }) => {
+const ContextSelectorPanel = ({
+  username,
+  handleTabsSubmit,
+  onClose,
+  isContextSearchActive,
+  checkedFiles,
+  setCheckedFiles,
+  selectedTabs,
+  setSelectedTabs,
+  files,
+  setFiles,
+  currentTab,
+  onRemoveFile,
+  setIsProcessing,
+}) => {
   const [activeTab, setActiveTab] = useState('files');
   const [uploadingFiles, setUploadingFiles] = useState([]);
   const [allTabs, setAllTabs] = useState([]);
-  // const [isProcessing, setIsProcessing] = useState(false);
-  const isProcessing = false
+  const isProcessing = false;
   const [error, setError] = useState('');
 
   // Reset checked items when context is disabled
-  // useEffect(() => {
-  //   if (!isContextEnabled) {
-  //     setCheckedFiles([]);
-  //     setSelectedTabs([]);
-  //   }
-  // }, [isContextEnabled]);
+  useEffect(() => {
+    if (!isContextSearchActive) {
+      setCheckedFiles([]);
+      setSelectedTabs([]);
+    }
+  }, [isContextSearchActive]);
 
   const handleFileCheck = (fileName, isChecked) => {
-    setCheckedFiles(prev => {
+    setCheckedFiles((prev) => {
       if (isChecked) {
         return [...prev, fileName];
       } else {
-        return prev.filter(name => name !== fileName);
+        return prev.filter((name) => name !== fileName);
       }
     });
   };
 
+  const isTabAllowed = (tab) => {
+    return (
+      tab?.url &&
+      (tab.url.match(/paypal\.atlassian\.net\/.*\/pages\//) ||
+        tab.url.startsWith('https://paypal-my.sharepoint.com/') ||
+        tab.url.includes('github.paypal.com'))
+    );
+  };
+
   useEffect(() => {
-    // Get current tabs from chrome.tabs API
     if (chrome?.tabs) {
       chrome.tabs.query({ currentWindow: true }, (tabs) => {
-        // Move current to the top of the list
-        const allTabExceptCurrent = tabs.filter(tab => tab.id !== currentTab.id);
-        setAllTabs([currentTab, ...allTabExceptCurrent]);
+        const relevantTabs = tabs.filter((tab) => {
+          if (currentTab) {
+            return tab.id !== currentTab.id && isTabAllowed(tab);
+          }
+          return isTabAllowed(tab);
+        });
+        if (isTabAllowed(currentTab)) {
+          setAllTabs([currentTab, ...relevantTabs]);
+        } else {
+          setAllTabs(relevantTabs);
+        }
       });
     }
   }, []);
 
-  const handleFileUpload = async (fileList, fileInputRef) => {
+  const handleFileUpload = async (fileList, fileInputRef, username) => {
     const newFiles = Array.from(fileList);
     const currentTotalFiles = files.length + uploadingFiles.length;
     const wouldExceedLimit = currentTotalFiles + newFiles.length > MAX_FILES;
@@ -312,7 +340,11 @@ const ContextSelectorPanel = ({ onClose, isContextEnabled, checkedFiles, setChec
     try {
       if (wouldExceedLimit) {
         const remainingSlots = MAX_FILES - currentTotalFiles;
-        throw new Error(`Can only upload ${remainingSlots} more file${remainingSlots === 1 ? '' : 's'}. Maximum ${MAX_FILES} files allowed.`);
+        throw new Error(
+          `Can only upload ${remainingSlots} more file${
+            remainingSlots === 1 ? '' : 's'
+          }. Maximum ${MAX_FILES} files allowed.`
+        );
       }
 
       // Add files to uploading state first
@@ -324,7 +356,7 @@ const ContextSelectorPanel = ({ onClose, isContextEnabled, checkedFiles, setChec
         type: file.type,
         size: file.size,
         extension: file.name.split('.').pop().toLowerCase(),
-        uploadStartTime: Date.now()
+        uploadStartTime: Date.now(),
       }));
 
       setFiles((prev) => [...filesWithStatus, ...prev]);
@@ -335,42 +367,34 @@ const ContextSelectorPanel = ({ onClose, isContextEnabled, checkedFiles, setChec
           // Simulate upload progress
           for (let progress = 0; progress <= 100; progress += 20) {
             setFiles((prev) =>
-              prev.map((f) =>
-                f.name === fileData.name ? { ...f, progress } : f
-              )
+              prev.map((f) => (f.name === fileData.name ? { ...f, progress } : f))
             );
             await new Promise((resolve) => setTimeout(resolve, 500));
           }
 
-          const response = await simulateFileUpload(fileData.file, 'username');
+          const response = await simulateFileUpload(fileData.file, username);
 
           if (response.success) {
             // Move from uploading to completed state
-            setFiles((prevFiles) => 
-              prevFiles.map((f) => 
-                f.name === fileData.name 
+            setFiles((prevFiles) =>
+              prevFiles.map((f) =>
+                f.name === fileData.name
                   ? {
                       ...f,
                       status: 'completed',
                       progress: 100,
                       uploadEndTime: Date.now(),
-                      uploadDuration: Date.now() - fileData.uploadStartTime
+                      uploadDuration: Date.now() - fileData.uploadStartTime,
                     }
                   : f
               )
             );
 
-            // Remove from uploading state
-            // setFiles((prev) =>
-            //   prev.filter((f) => f.name !== fileData.name)
-            // );
             setCheckedFiles((prev) => [...prev, fileData.name]);
           }
         } catch (error) {
           console.error(`Error uploading ${fileData.name}:`, error);
-            setFiles((prev) =>
-              prev.filter((f) => f.name !== fileData.name)
-            );
+          setFiles((prev) => prev.filter((f) => f.name !== fileData.name));
           alert(`Failed to upload ${fileData.name}: ${error.message}`);
         }
       }
@@ -385,58 +409,58 @@ const ContextSelectorPanel = ({ onClose, isContextEnabled, checkedFiles, setChec
   };
 
   const handleDeleteFile = (fileName) => {
-    setFiles(files.filter(file => file.name !== fileName));
+    setFiles(files.filter((file) => file.name !== fileName));
     // setUploadingFiles(uploadingFiles.filter(file => file.name !== fileName));
   };
 
-  const handleTabsSubmit = async (tabId) => {
-    if (selectedTabs.length === 0) return;
+  // const handleTabsSubmit = async (tabId) => {
+  //   if (selectedTabs.length === 0) return;
 
-    setIsProcessing(true);
-    setError('');
+  //   setIsProcessing(true);
+  //   setError('');
 
-    try {
-      const response = await new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage(
-          {
-            action: 'ingestSelectedTabsContent',
-            tabId,
-          },
-          (response) => {
-            if (chrome.runtime.lastError) {
-              reject(chrome.runtime.lastError);
-            } else {
-              resolve(response);
-            }
-          }
-        );
-      });
+  //   try {
+  //     const response = await new Promise((resolve, reject) => {
+  //       chrome.runtime.sendMessage(
+  //         {
+  //           action: 'ingestSelectedTabsContent',
+  //           tabId,
+  //         },
+  //         (response) => {
+  //           if (chrome.runtime.lastError) {
+  //             reject(chrome.runtime.lastError);
+  //           } else {
+  //             resolve(response);
+  //           }
+  //         }
+  //       );
+  //     });
 
-      if (!response.success) {
-        throw new Error(response.message || 'Failed to process tabs');
-      }
-    } catch (err) {
-      setError(err.message);
-      setSelectedTabs(prev => prev.filter(tab => tab.id !== tabId));
-      setTimeout(() => {
-        setError('');
-      }, 3000);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  //     if (!response.success) {
+  //       throw new Error(response.message || 'Failed to process tabs');
+  //     }
+  //   } catch (err) {
+  //     setError(err.message);
+  //     setSelectedTabs(prev => prev.filter(tab => tab.id !== tabId));
+  //     setTimeout(() => {
+  //       setError('');
+  //     }, 3000);
+  //   } finally {
+  //     setIsProcessing(false);
+  //   }
+  // };
 
   return (
-    <div className="mx-auto bg-white rounded-lg shadow-lg border border-gray-200">
-      <div className="flex justify-between items-center p-4 border-b">
-        <h2 className="text-lg font-medium">Select Context</h2>
-        <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+    <div className='mx-auto bg-white rounded-lg shadow-lg border border-gray-200'>
+      <div className='flex justify-between items-center p-4 border-b'>
+        <h2 className='text-lg font-medium'>Select Context</h2>
+        <button onClick={onClose} className='text-gray-500 hover:text-gray-700'>
           <X size={20} />
         </button>
       </div>
 
-      <div className="border-b">
-        <div className="flex">
+      <div className='border-b'>
+        <div className='flex'>
           <button
             className={`flex-1 py-2 text-sm font-medium border-b-2 ${
               activeTab === 'files'
@@ -444,9 +468,10 @@ const ContextSelectorPanel = ({ onClose, isContextEnabled, checkedFiles, setChec
                 : 'text-gray-500 border-transparent'
             }`}
             onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              setActiveTab('files')}}
+              e.preventDefault();
+              e.stopPropagation();
+              setActiveTab('files');
+            }}
           >
             Files ({checkedFiles.length})
           </button>
@@ -457,9 +482,9 @@ const ContextSelectorPanel = ({ onClose, isContextEnabled, checkedFiles, setChec
                 : 'text-gray-500 border-transparent'
             }`}
             onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              setActiveTab('tabs')
+              e.preventDefault();
+              e.stopPropagation();
+              setActiveTab('tabs');
             }}
           >
             Tabs ({selectedTabs.length})
@@ -476,6 +501,7 @@ const ContextSelectorPanel = ({ onClose, isContextEnabled, checkedFiles, setChec
           checkedFiles={checkedFiles}
           onFileCheck={handleFileCheck}
           onRemoveFile={onRemoveFile}
+          username={username}
         />
       ) : (
         <TabsTab
@@ -490,15 +516,15 @@ const ContextSelectorPanel = ({ onClose, isContextEnabled, checkedFiles, setChec
         />
       )}
 
-      <div className="p-4 border-t">
+      <div className='p-4 border-t'>
         <button
           onClick={onClose}
           disabled={isProcessing || (activeTab === 'tabs' && selectedTabs.length === 0)}
-          className="w-full py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 flex items-center justify-center"
+          className='w-full py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 flex items-center justify-center'
         >
           {isProcessing ? (
             <>
-              <Loader2 className="animate-spin mr-2" size={16} />
+              <Loader2 className='animate-spin mr-2' size={16} />
               Processing...
             </>
           ) : (
@@ -545,7 +571,7 @@ const simulateFileUpload = (file, username) => {
           fileFormat: fileFormat,
           fileSize: file.size,
           fileData: fileData,
-          extension: extension
+          extension: extension,
         },
         (response) => {
           if (chrome.runtime.lastError) {
@@ -570,18 +596,32 @@ const simulateFileUpload = (file, username) => {
 };
 
 // Main ContextSelector component
-const ContextSelector = ({ currentTab, isContextEnabled, checkedFiles, setCheckedFiles, selectedTabs, setSelectedTabs, files, setFiles, onRemoveFile, setIsProcessing, isContextSearchActive }) => {
+const ContextSelector = ({
+  username,
+  handleTabsSubmit,
+  currentTab,
+  checkedFiles,
+  setCheckedFiles,
+  selectedTabs,
+  setSelectedTabs,
+  files,
+  setFiles,
+  onRemoveFile,
+  setIsProcessing,
+  isContextSearchActive,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const totalContext = checkedFiles.length + selectedTabs.length;
-  
+
   return (
-    <Popover 
-      isOpen={isOpen} 
+    <Popover
+      isOpen={isOpen}
       onOpenChange={setIsOpen}
+      isContextSearchActive={isContextSearchActive}
       content={
-        <ContextSelectorPanel 
-          onClose={() => setIsOpen(false)} 
-          isContextEnabled={isContextEnabled}
+        <ContextSelectorPanel
+          onClose={() => setIsOpen(false)}
+          isContextSearchActive={isContextSearchActive}
           checkedFiles={checkedFiles}
           setCheckedFiles={setCheckedFiles}
           selectedTabs={selectedTabs}
@@ -591,28 +631,30 @@ const ContextSelector = ({ currentTab, isContextEnabled, checkedFiles, setChecke
           currentTab={currentTab}
           onRemoveFile={onRemoveFile}
           setIsProcessing={setIsProcessing}
+          handleTabsSubmit={handleTabsSubmit}
+          username={username}
         />
       }
     >
-<button 
-  className={`relative p-2 rounded-lg ${
-    !isContextSearchActive 
-      ? 'opacity-50 cursor-not-allowed pointer-events-none' 
-      : 'hover:bg-gray-100'
-  }`} 
-  disabled={!isContextSearchActive}
->
-  <Layers className={`w-5 h-5 ${
-    (checkedFiles.length > 0 || selectedTabs.length > 0) 
-      ? 'text-blue-500' 
-      : 'text-gray-600'
-  }`} />
-  {totalContext > 0 && (
-    <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-      {totalContext}
-    </span>
-  )}
-</button>
+      <button
+        className={`relative p-2 rounded-lg ${
+          !isContextSearchActive
+            ? 'opacity-50 cursor-not-allowed pointer-events-none'
+            : 'hover:bg-gray-100'
+        }`}
+        disabled={!isContextSearchActive}
+      >
+        <Layers
+          className={`w-5 h-5 ${
+            checkedFiles.length > 0 || selectedTabs.length > 0 ? 'text-blue-500' : 'text-gray-600'
+          }`}
+        />
+        {totalContext > 0 && (
+          <span className='absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center'>
+            {totalContext}
+          </span>
+        )}
+      </button>
     </Popover>
   );
 };
